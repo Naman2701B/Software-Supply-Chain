@@ -1,0 +1,59 @@
+[project]
+name = "python-rekor-monitor"
+version = "0.1.0"
+description = "Rekor transparency log verifier (CS-GY 9223 Software Supply Chain Security)"
+authors = [
+    {name = "Naman",email = "nb4180@nyu.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests (>=2.34.2,<3.0.0)",
+    "cryptography (>=50.0.2,<51.0.0)"
+]
+
+[tool.poetry]
+# This is a CLI script collection, not an installable package.
+package-mode = false
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+
+[tool.bandit]
+exclude_dirs = [".venv", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--cov --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.17.1,<0.18.0)",
+    "mypy (>=2.4.0,<3.0.0)",
+    "bandit (>=1.9.4,<2.0.0)",
+    "types-requests (>=2.33.0.20261006,<3.0.0.0)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)"
+]

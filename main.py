@@ -2,30 +2,37 @@ import argparse
 import base64
 import json
 import os
+from typing import Any
 
 import requests
 
+from merkle_proof import (
+    DefaultHasher,
+    compute_leaf_hash,
+    verify_consistency,
+    verify_inclusion,
+)
 from util import extract_public_key, verify_artifact_signature
-from merkle_proof import DefaultHasher, verify_consistency, verify_inclusion, compute_leaf_hash
 
 # Public Rekor instance used by cosign / sigstore.
 REKOR_API_BASE = "https://rekor.sigstore.dev/api/v1"
 REQUEST_TIMEOUT = 30
 
 
-def get_log_entry(log_index, debug=False):
+def get_log_entry(log_index: int, debug: bool = False) -> dict[str, Any]:
     # verify that log index value is sane
     if log_index is None or int(log_index) < 0:
         raise ValueError("log index must be a non-negative integer")
 
     url = f"{REKOR_API_BASE}/log/entries"
-    response = requests.get(url, params={"logIndex": int(log_index)},
-                            timeout=REQUEST_TIMEOUT)
+    response = requests.get(
+        url, params={"logIndex": int(log_index)}, timeout=REQUEST_TIMEOUT
+    )
     response.raise_for_status()
 
     # The response is a JSON object keyed by the entry UUID. For a single
     # logIndex query there is exactly one entry, so return its value.
-    data = response.json()
+    data: dict[str, dict[str, Any]] = response.json()
     if not data:
         raise ValueError(f"no log entry found for log index {log_index}")
     uuid, entry = next(iter(data.items()))
@@ -36,7 +43,7 @@ def get_log_entry(log_index, debug=False):
     return entry
 
 
-def get_verification_proof(log_index, debug=False):
+def get_verification_proof(log_index: int, debug: bool = False) -> dict[str, Any]:
     # verify that log index value is sane
     if log_index is None or int(log_index) < 0:
         raise ValueError("log index must be a non-negative integer")
@@ -63,18 +70,22 @@ def get_verification_proof(log_index, debug=False):
     return proof
 
 
-def inclusion(log_index, artifact_filepath, debug=False):
+def inclusion(
+    log_index: int, artifact_filepath: str | None, debug: bool = False
+) -> None:
     # verify that log index and artifact filepath values are sane
     if log_index is None or int(log_index) < 0:
         raise ValueError("log index must be a non-negative integer")
     if not artifact_filepath or not os.path.isfile(artifact_filepath):
-        raise ValueError(f"artifact filepath is not a valid file: {artifact_filepath!r}")
+        raise ValueError(
+            f"artifact filepath is not a valid file: {artifact_filepath!r}"
+        )
 
     entry = get_log_entry(log_index, debug)
 
     # The body is base64-encoded JSON describing a hashedrekord entry. From it
     # we pull the detached signature and the signing certificate (both base64).
-    body = json.loads(base64.b64decode(entry["body"]))
+    body: dict[str, Any] = json.loads(base64.b64decode(entry["body"]))
     signature_b64 = body["spec"]["signature"]["content"]
     certificate_b64 = body["spec"]["signature"]["publicKey"]["content"]
 
@@ -104,12 +115,12 @@ def inclusion(log_index, artifact_filepath, debug=False):
     print("Offline root hash calculation for inclusion verified.")
 
 
-def get_latest_checkpoint(debug=False):
+def get_latest_checkpoint(debug: bool = False) -> dict[str, Any]:
     # Fetch the latest checkpoint (signed tree head) from rekor.
     url = f"{REKOR_API_BASE}/log"
     response = requests.get(url, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
-    checkpoint = response.json()
+    checkpoint: dict[str, Any] = response.json()
 
     if debug:
         print("latest checkpoint:")
@@ -122,7 +133,7 @@ def get_latest_checkpoint(debug=False):
     return checkpoint
 
 
-def consistency(prev_checkpoint, debug=False):
+def consistency(prev_checkpoint: dict[str, Any], debug: bool = False) -> None:
     # verify that prev checkpoint is not empty
     if not prev_checkpoint:
         raise ValueError("previous checkpoint must not be empty")
@@ -160,7 +171,7 @@ def consistency(prev_checkpoint, debug=False):
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
-    proof = response.json()["hashes"]
+    proof: list[str] = response.json()["hashes"]
 
     root1 = prev_checkpoint["rootHash"]
     root2 = latest["rootHash"]
@@ -175,31 +186,50 @@ def consistency(prev_checkpoint, debug=False):
     print("Consistency verification successful.")
 
 
-def main():
+def main() -> None:
     debug = False
     parser = argparse.ArgumentParser(description="Rekor Verifier")
-    parser.add_argument('-d', '--debug', help='Debug mode',
-                        required=False, action='store_true') # Default false
-    parser.add_argument('-c', '--checkpoint', help='Obtain latest checkpoint\
-                        from Rekor Server public instance',
-                        required=False, action='store_true')
-    parser.add_argument('--inclusion', help='Verify inclusion of an\
+    parser.add_argument(
+        "-d", "--debug", help="Debug mode", required=False, action="store_true"
+    )  # Default false
+    parser.add_argument(
+        "-c",
+        "--checkpoint",
+        help="Obtain latest checkpoint\
+                        from Rekor Server public instance",
+        required=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--inclusion",
+        help="Verify inclusion of an\
                         entry in the Rekor Transparency Log using log index\
                         and artifact filename.\
-                        Usage: --inclusion 126574567',
-                        required=False, type=int)
-    parser.add_argument('--artifact', help='Artifact filepath for verifying\
-                        signature',
-                        required=False)
-    parser.add_argument('--consistency', help='Verify consistency of a given\
-                        checkpoint with the latest checkpoint.',
-                        action='store_true')
-    parser.add_argument('--tree-id', help='Tree ID for consistency proof',
-                        required=False)
-    parser.add_argument('--tree-size', help='Tree size for consistency proof',
-                        required=False, type=int)
-    parser.add_argument('--root-hash', help='Root hash for consistency proof',
-                        required=False)
+                        Usage: --inclusion 126574567",
+        required=False,
+        type=int,
+    )
+    parser.add_argument(
+        "--artifact",
+        help="Artifact filepath for verifying\
+                        signature",
+        required=False,
+    )
+    parser.add_argument(
+        "--consistency",
+        help="Verify consistency of a given\
+                        checkpoint with the latest checkpoint.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--tree-id", help="Tree ID for consistency proof", required=False
+    )
+    parser.add_argument(
+        "--tree-size", help="Tree size for consistency proof", required=False, type=int
+    )
+    parser.add_argument(
+        "--root-hash", help="Root hash for consistency proof", required=False
+    )
     args = parser.parse_args()
     if args.debug:
         debug = True
@@ -222,12 +252,13 @@ def main():
             print("please specify root hash for prev checkpoint")
             return
 
-        prev_checkpoint = {}
+        prev_checkpoint: dict[str, Any] = {}
         prev_checkpoint["treeID"] = args.tree_id
         prev_checkpoint["treeSize"] = args.tree_size
         prev_checkpoint["rootHash"] = args.root_hash
 
         consistency(prev_checkpoint, debug)
+
 
 if __name__ == "__main__":
     main()
