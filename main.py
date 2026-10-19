@@ -26,6 +26,8 @@ def get_log_entry(log_index, debug=False):
     # The response is a JSON object keyed by the entry UUID. For a single
     # logIndex query there is exactly one entry, so return its value.
     data = response.json()
+    if not data:
+        raise ValueError(f"no log entry found for log index {log_index}")
     uuid, entry = next(iter(data.items()))
     if debug:
         print("fetched log entry")
@@ -133,6 +135,22 @@ def consistency(prev_checkpoint, debug=False):
     size1 = int(prev_checkpoint["treeSize"])
     size2 = int(latest["treeSize"])
     tree_id = prev_checkpoint["treeID"]
+
+    # Both tree sizes must be positive, and the previous tree cannot be
+    # larger than the latest one.
+    if size1 <= 0 or size2 <= 0:
+        raise ValueError("tree sizes must be positive integers")
+    if size1 > size2:
+        raise ValueError(
+            f"previous tree size ({size1}) is larger than latest tree size ({size2})"
+        )
+
+    # Both checkpoints must come from the same tree to be comparable.
+    if str(tree_id) != str(latest["treeID"]):
+        raise ValueError(
+            f"tree ID mismatch: previous checkpoint is from tree {tree_id}, "
+            f"latest checkpoint is from tree {latest['treeID']}"
+        )
 
     # Obtain the consistency proof between the two tree sizes from Rekor.
     url = f"{REKOR_API_BASE}/log/proof"
