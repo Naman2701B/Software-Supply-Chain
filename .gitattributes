@@ -1,0 +1,3 @@
+# artifact.md is a signed artifact: its exact bytes (including the CRLF line
+# ending it was signed with) must never be rewritten by line-ending conversion.
+artifact.md -text

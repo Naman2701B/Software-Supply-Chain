@@ -1,0 +1,20 @@
+# Code owners are automatically requested for review on pull requests that
+# touch the matching paths. Later rules take precedence over earlier ones.
+
+# Default owner for everything in the repository
+*                           @Naman2701B
+
+# Core verification logic
+main.py                     @Naman2701B
+merkle_proof.py             @Naman2701B
+util.py                     @Naman2701B
+
+# Tests and recorded fixtures
+/tests/                     @Naman2701B
+
+# Build, tooling and security configuration
+pyproject.toml              @Naman2701B
+poetry.lock                 @Naman2701B
+.pre-commit-config.yaml     @Naman2701B
+.github/                    @Naman2701B
+SECURITY.md                 @Naman2701B
