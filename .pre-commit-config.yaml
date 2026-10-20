@@ -1,0 +1,22 @@
+# Secret scanning with TruffleHog on every commit.
+#
+# Only the files staged in the commit being made are scanned: pre-commit passes
+# their paths to `trufflehog filesystem`. The rest of the repository and its
+# history are never scanned, so the hook stays fast as the repo grows.
+# (`trufflehog git --since-commit HEAD` is not used: it only sees commits that
+# already exist, so it misses the staged changes a pre-commit hook must check.)
+#
+# --no-verification reports every detected secret, including ones TruffleHog
+# cannot confirm are live; --fail blocks the commit if any are found.
+#
+# Requires trufflehog on PATH. Enable with: pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: TruffleHog secret scan
+        description: Block commits that contain secrets.
+        entry: trufflehog filesystem --no-verification --no-update --fail
+        language: system
+        pass_filenames: true
+        stages: ["pre-commit"]
